@@ -12,51 +12,59 @@ class BmpWriter:
     Класс для записи BMP файла изображения
     '''
 
-    def  __init__(self, img_name, bmp_dim):
-        '''
-        Конструктор объекта
-        :param: img_name - название изображения
-        :param: dim - размерность изображения (dim x dim) Не менее 100
-        '''
 
-
-        # Проверка соответствия типов входных параметров конструктора
-        if (type(img_name) != str or type(bmp_dim) != int or bmp_dim < 100):
+    def set_img_name(self, img_name):
+        '''
+        функция установки имени изображения
+        :param img_name: имя изображения. Имя файла img_name.bmp
+        :return: ...
+        '''
+        if (type(img_name) != str):
             raise TypeError(
                 f'Неверный тип входных данных. \n'
-                f'Ожидаемый формат img_name == > str, bmp_dim ==> int. \n'
-                f'Размер изображения не менне 100 \n'
-                f'Ошибка создания объекта.'
+                f'Ожидаемый формат img_name == > str'
             )
 
-
         self.file_name = img_name + '.bmp'
-        self.bmp_width = bmp_dim
-        self.bmp_heigth = bmp_dim
-        self.bmp_matrix = [[[255, 255, 255] for i in range(0, bmp_dim)] for j in range(0, bmp_dim)]
-
-        print(f'Output file name ==> {self.file_name}. Img size ==> {self.bmp_width} x {self.bmp_heigth}')
+        print(f'Имя файла: {self.file_name}')
 
 
-    def __prepare_data__(self):
+    def set_data(self, img_data, width, heigth):
         '''
-        Функция подготовки данных для записи в файл
+        Функция установки данных изображения
+        :param img_data: массив значений изображения list[[[r,g,b] size of width] size of heigth]
+        :param width: ширина изображения >= 100
+        :param heigth: высота изображения >= 100
+        :return: ...
         '''
+
+        # Проверка соответствия типов входных параметров конструктора
+        if (type(width) != int or type(heigth) != int):
+            raise TypeError(
+                f'Неверный тип входных данных. \n'
+                f'Ожидаемый формат width == > int, heigth ==> int. \n'
+            )
+
+        if width < 100 or heigth < 100 or len(img_data) != width or len(img_data[0]) != heigth or len(img_data[0][0]) != 3:
+            raise ValueError(
+                f'Неверный размер входных данных. \n'
+                f'Размер изображения не менне 100 \n'
+            )
+
+        self.bmp_width = width
+        self.bmp_heigth = heigth
+        self.bmp_matrix = img_data
+
+        print(f'Img size ==> {self.bmp_width} x {self.bmp_heigth}')
+
+    def save_file(self):
 
         # Вычисляем размер файла
-        file_size = 14 + 40 + 3 * self.bmp_width * self.bmp_heigth
+        self.file_size = 14 + 40 + 3 * self.bmp_width * self.bmp_heigth
 
         # фомируем заголовок BMP файла
-        self.bmp_header = struct.pack(BMP_FILE_HDR_STR, 0x4D42, file_size, 0, 0, 54)
+        self.bmp_header = struct.pack(BMP_FILE_HDR_STR, 0x4D42, self.file_size, 0, 0, 54)
         self.bmp_info = struct.pack(BMP_INFO_HDR_STR, 40, self.bmp_width, self.bmp_heigth, 1, 24, 0, 0, 0, 0, 0, 0)
-
-        step = 1/self.bmp_width
-        phase = 0.0
-        while phase < 2.0 * math.pi :
-            x = int((self.bmp_width/2-1) * ((math.sin(3.0*phase + math.pi/2.0) + 1)))
-            y = int((self.bmp_width/2-1) * ((math.sin(2.0 * phase) + 1)))
-            self.bmp_matrix[x][y] = [0, 0, 0]
-            phase += step
 
         self.img_array = bytearray()
         for i in range(0, self.bmp_width):
@@ -67,11 +75,7 @@ class BmpWriter:
                 self.img_array += struct.pack('=B', 0)
 
 
-    def save_file(self):
         with open(self.file_name, 'wb') as bmp_file:
-
-            # готовим данные для записи
-            self.__prepare_data__()
 
             # записываем данные в файл
             bmp_file.write(self.bmp_header)
@@ -79,13 +83,47 @@ class BmpWriter:
             bmp_file.write(self.img_array)
 
 
+def prepare_data(img_data, width, heigth):
+    '''
+    Функция подготовки данных для записи в файл
+    :param img_data: массив для формирования данных изображения
+    :param width: ширина изображения (int)
+    :param heigth: длина изображения (int)
+    :return: заполненный массив значений
+    '''
+
+    img_data = [[[255, 255, 255] for i in range(0, width)] for j in range(0, heigth)]
+
+    step = 1 / width
+    phase = 0.0
+    while phase < 2.0 * math.pi:
+        x = int((width / 2 - 1) * ((math.sin(3.0 * phase + math.pi / 2.0) + 1)))
+        y = int((heigth / 2 - 1) * ((math.sin(2.0 * phase) + 1)))
+        img_data[x][y] = [0, 0, 0]
+        phase += step
+
+    return img_data
+
+
 
 # параметры отображения
-bmp_dim = 1000
+dim = 1000
 bmp_name = 'result_img'
 
+# массив данных изображения
+bmp_data = None
+
 try:
-    bwr = BmpWriter(bmp_name, bmp_dim)
+    bwr = BmpWriter()
+    bwr.set_img_name(bmp_name)
+
+    # Заполняем данные изображения
+    bmp_data = prepare_data(bmp_data, dim, dim)
+
+    # передаем а запись в файл
+    bwr.set_data(bmp_data, dim, dim)
+
+    # записываем в файл
     bwr.save_file()
 except Exception as ex:
     print(type(ex))
